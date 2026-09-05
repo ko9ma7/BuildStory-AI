@@ -54,6 +54,42 @@ function toggleTheme() {
   applyTheme(pref === 'system' ? (resolved === 'dark' ? 'light' : 'dark') : (pref === 'dark' ? 'light' : 'dark'));
 }
 
+function tabFromHash(hash = location.hash) {
+  const id = hash.replace(/^#/, '');
+  return ['story', 'insights', 'architecture', 'video'].includes(id) ? id : null;
+}
+
+function navigateToSection(id, { updateHistory = true, behavior } = {}) {
+  if (id === 'top') {
+    if (updateHistory) history.replaceState({}, '', `${location.pathname}${location.search}#top`);
+    document.querySelector('#top')?.scrollIntoView({ behavior: behavior || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'), block: 'start' });
+    return;
+  }
+
+  const tab = tabFromHash(`#${id}`);
+  if (!tab || !state.analysis) return;
+
+  state.activeTab = tab;
+  renderTabContent();
+  if (updateHistory) history.replaceState({}, '', `${location.pathname}${location.search}#${id}`);
+
+  requestAnimationFrame(() => {
+    const target = id === 'story' ? document.querySelector('#story') : document.querySelector(`#${CSS.escape(id)}`);
+    target?.scrollIntoView({ behavior: behavior || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'), block: 'start' });
+  });
+}
+
+function bindHeaderNavigation() {
+  document.querySelectorAll('.header-nav a, .brand[href^="#"]').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      const id = link.getAttribute('href')?.replace(/^#/, '');
+      if (!id) return;
+      event.preventDefault();
+      navigateToSection(id);
+    });
+  });
+}
+
 function toast(message, type = 'info') {
   const region = document.querySelector('#toast-region');
   if (!region) return;
@@ -187,9 +223,13 @@ function renderShell() {
     toast('샘플 스토리로 돌아왔습니다.');
   });
   document.querySelector('[data-theme-toggle]').addEventListener('click', toggleTheme);
+  bindHeaderNavigation();
   renderRecent();
   renderResult();
   applyTheme(storageGet(STORAGE.theme, 'system'));
+
+  const initialTab = tabFromHash();
+  if (initialTab) navigateToSection(initialTab, { updateHistory: false, behavior: 'auto' });
 }
 
 function renderRecent() {
@@ -245,7 +285,7 @@ async function handleAnalyze(event) {
     const analysis = analyzeRepository(bundle);
     state.analysis = analysis;
     state.source = 'github';
-    state.activeTab = 'story';
+    state.activeTab = tabFromHash() || 'story';
     saveRecent(analysis.slug);
     const url = new URL(location.href);
     url.searchParams.set('repo', analysis.slug);
@@ -253,7 +293,7 @@ async function handleAnalyze(event) {
     renderRecent();
     hideLoading();
     renderResult();
-    document.querySelector('#story')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    navigateToSection(state.activeTab, { updateHistory: false });
     toast(`${analysis.slug} 분석을 완료했습니다.`, 'success');
   } catch (error) {
     showError(error);
@@ -307,6 +347,7 @@ function renderResult() {
   result.querySelectorAll('[data-tab]').forEach((button) => button.addEventListener('click', () => {
     state.activeTab = button.dataset.tab;
     renderTabContent();
+    history.replaceState({}, '', `${location.pathname}${location.search}#${state.activeTab}`);
   }));
   result.querySelector('[data-share]').addEventListener('click', openShareDialog);
   result.querySelector('[data-export]').addEventListener('click', exportJson);
