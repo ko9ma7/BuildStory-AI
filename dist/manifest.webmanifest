@@ -1,0 +1,14 @@
+{
+  "name": "BuildStory AI",
+  "short_name": "BuildStory",
+  "description": "Turn a public GitHub repository into an interactive development story.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#07111f",
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
